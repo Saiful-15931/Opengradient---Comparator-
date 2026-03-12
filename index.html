@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenGradient Model Comparator</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #03020a;
+  --bg2: #060412;
+  --p: #8b5cf6;
+  --p2: #7c3aed;
+  --pl: #a78bfa;
+  --c: #22d3ee;
+  --c2: #06b6d4;
+  --g: #34d399;
+  --y: #fbbf24;
+  --r: #f87171;
+  --o: #fb923c;
+  --b1: rgba(255,255,255,0.05);
+  --b2: rgba(255,255,255,0.08);
+  --b3: rgba(255,255,255,0.12);
+  --t1: #94a3b8;
+  --t2: #64748b;
+  --w: #f8fafc;
+  --gpt: #10a37f;
+  --llama: #0064e1;
+  --mistral: #ff7000;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; }
+body {
+  background: var(--bg);
+  font-family: 'Outfit', sans-serif;
+  color: var(--t1);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* BG effects */
+.bg-wrap {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+}
+.orb {
+  position: absolute; border-radius: 50%; filter: blur(100px);
+  animation: orbF 12s ease-in-out infinite;
+}
+.o1 { width:700px; height:700px; background:rgba(139,92,246,0.06); top:-300px; left:-200px; }
+.o2 { width:600px; height:600px; background:rgba(34,211,238,0.05); bottom:-250px; right:-200px; animation-delay:5s; }
+.o3 { width:400px; height:400px; background:rgba(52,211,153,0.04); top:40%; left:35%; animation-delay:9s; }
+@keyframes orbF { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(40px,-30px) scale(1.05)} 70%{transform:translate(-25px,35px) scale(0.95)} }
+
+.grid-bg {
+  position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,0.01) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.01) 1px, transparent 1px);
+  background-size: 60px 60px; pointer-events: none; z-index: 0;
+}
+
+/* Layout */
+.container {
+  position: relative; z-index: 1;
+  max-width: 1300px; margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+/* Header */
+.header {
+  text-align: center; padding: 50px 20px 40px;
+  animation: fadeUp 0.7s ease;
+}
+
+.header-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-radius: 20px;
+  background: rgba(139,92,246,0.1);
+  border: 1px solid rgba(139,92,246,0.25);
+  font-size: 11px; letter-spacing: 3px; color: var(--pl);
+  margin-bottom: 20px;
+}
+
+.dot-live {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--g);
+  box-shadow: 0 0 8px var(--g);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{box-shadow:0 0 4px var(--g)} 50%{box-shadow:0 0 16px var(--g), 0 0 30px rgba(52,211,153,0.2)} }
+
+.header h1 {
+  font-size: clamp(32px, 5vw, 58px);
+  font-weight: 900; color: var(--w);
+  line-height: 1.1; margin-bottom: 14px;
+  letter-spacing: -1px;
+}
+.header h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--pl), var(--c));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header p {
+  font-size: 16px; color: var(--t1); max-width: 520px;
+  margin: 0 auto 30px; line-height: 1.7; font-weight: 300;
+}
+
+/* Model badges */
+.model-badges {
+  display: flex; justify-content: center; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 10px;
+}
+.mbadge {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 16px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  border: 1px solid; transition: transform 0.2s;
+}
+.mbadge:hover { transform: translateY(-2px); }
+.mbadge.gpt { background: rgba(16,163,127,0.08); border-color: rgba(16,163,127,0.25); color: #10a37f; }
+.mbadge.llama { background: rgba(0,100,225,0.08); border-color: rgba(0,100,225,0.25); color: #60a5fa; }
+.mbadge.mistral { background: rgba(255,112,0,0.08); border-color: rgba(255,112,0,0.25); color: var(--o); }
+.mbadge-dot { width: 7px; height: 7px; border-radius: 50%; }
+.gpt .mbadge-dot { background: #10a37f; }
+.llama .mbadge-dot { background: #60a5fa; }
+.mistral .mbadge-dot { background: var(--o); }
+
+/* Input section */
+.input-section {
+  background: var(--b1);
+  border: 1px solid var(--b2);
+  border-radius: 20px; padding: 24px;
+  margin-bottom: 28px;
+  animation: fadeUp 0.7s ease 0.1s both;
+  backdrop-filter: blur(10px);
+}
+
+.input-label {
+  font-size: 11px; letter-spacing: 3px; color: var(--t2);
+  margin-bottom: 12px;
+}
+
+.input-row {
+  display: flex; gap: 12px; align-items: flex-end;
+}
+
+.prompt-input {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--b3);
+  border-radius: 14px; padding: 14px 18px;
+  color: var(--w); font-family: 'Outfit', sans-serif;
+  font-size: 15px; resize: none; outline: none;
+  line-height: 1.6; max-height: 120px; min-height: 52px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.prompt-input:focus {
+  border-color: rgba(139,92,246,0.5);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.08);
+}
+.prompt-input::placeholder { color: rgba(148,163,184,0.3); }
+
+.compare-btn {
+  padding: 14px 28px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--p2), var(--c2));
+  border: none; cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px; font-weight: 700; color: white;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 0 24px rgba(124,58,237,0.3);
+  display: flex; align-items: center; gap: 8px;
+}
+.compare-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px rgba(124,58,237,0.5);
+}
+.compare-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Quick prompts */
+.quick-prompts {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;
+}
+.qp {
+  padding: 5px 13px; border-radius: 20px;
+  border: 1px solid var(--b2); background: transparent;
+  color: var(--t2); font-family: 'Outfit', sans-serif;
+  font-size: 11px; cursor: pointer;
+  transition: all 0.2s;
+}
+.qp:hover { border-color: rgba(139,92,246,0.4); color: var(--pl); background: rgba(139,92,246,0.06); }
+
+/* Stats bar */
+.stats-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 28px;
+  animation: fadeUp 0.7s ease 0.15s both;
+}
+.stat-card {
+  background: var(--b1); border: 1px solid var(--b2);
+  border-radius: 14px; padding: 16px 18px;
+  text-align: center;
+}
+.stat-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 600; color: var(--w);
+  line-height: 1;
+}
+.stat-lbl { font-size: 10px; color: var(--t2); margin-top: 5px; letter-spacing: 2px; }
+
+/* Comparison grid */
+.comp-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 16px; margin-bottom: 28px;
+  animation: fadeUp 0.7s ease 0.2s both;
+}
+
+.model-card {
+  border-radius: 20px; overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+}
+.model-card:hover { transform: translateY(-5px); }
+
+/* GPT-4o card — emerald green theme */
+#card-gpt {
+  background: linear-gradient(160deg, rgba(16,163,127,0.08) 0%, rgba(3,2,10,0.95) 40%);
+  border: 1px solid rgba(16,163,127,0.25);
+  box-shadow: 0 4px 30px rgba(16,163,127,0.05);
+}
+#card-gpt:hover { box-shadow: 0 8px 40px rgba(16,163,127,0.12); }
+
+/* Llama card — blue theme */
+#card-llama {
+  background: linear-gradient(160deg, rgba(59,130,246,0.08) 0%, rgba(3,2,10,0.95) 40%);
+  border: 1px solid rgba(59,130,246,0.25);
+  box-shadow: 0 4px 30px rgba(59,130,246,0.05);
+}
+#card-llama:hover { box-shadow: 0 8px 40px rgba(59,130,246,0.12); }
+
+/* Mistral card — orange theme */
+#card-mistral {
+  background: linear-gradient(160deg, rgba(249,115,22,0.08) 0%, rgba(3,2,10,0.95) 40%);
+  border: 1px solid rgba(249,115,22,0.25);
+  box-shadow: 0 4px 30px rgba(249,115,22,0.05);
+}
+#card-mistral:hover { box-shadow: 0 8px 40px rgba(249,115,22,0.12); }
+
+.model-card.winner {
+  border-color: rgba(251,191,36,0.5) !important;
+  box-shadow: 0 0 40px rgba(251,191,36,0.15) !important;
+}
+.model-card.winner::before {
+  content: '🏆 BEST RESPONSE';
+  position: absolute; top: 0; right: 0;
+  background: linear-gradient(135deg, rgba(251,191,36,0.95), rgba(245,158,11,0.95));
+  color: #000; font-size: 9px; font-weight: 800;
+  letter-spacing: 2px; padding: 5px 14px;
+  border-bottom-left-radius: 10px;
+}
+
+/* Card header color accents */
+#card-gpt .card-header { border-bottom: 1px solid rgba(16,163,127,0.15); }
+#card-llama .card-header { border-bottom: 1px solid rgba(59,130,246,0.15); }
+#card-mistral .card-header { border-bottom: 1px solid rgba(249,115,22,0.15); }
+
+/* Metric val colors per model */
+#card-gpt .metric-val { color: #6ee7b7; }
+#card-llama .metric-val { color: #93c5fd; }
+#card-mistral .metric-val { color: #fdba74; }
+
+/* Response text per model */
+#card-gpt .response-area { color: #a7f3d0; }
+#card-llama .response-area { color: #bfdbfe; }
+#card-mistral .response-area { color: #fed7aa; }
+
+/* Typing dots per model */
+#card-gpt .t-dot { background: #10a37f; }
+#card-llama .t-dot { background: #3b82f6; }
+#card-mistral .t-dot { background: #f97316; }
+
+/* TX hash per model */
+#card-gpt .tx-hash { color: #34d399; }
+#card-llama .tx-hash { color: #60a5fa; }
+#card-mistral .tx-hash { color: #fb923c; }
+
+/* Vote buttons per model */
+#card-gpt .vote-btn:hover:not(:disabled) { border-color: rgba(16,163,127,0.5); color: #34d399; background: rgba(16,163,127,0.08); }
+#card-llama .vote-btn:hover:not(:disabled) { border-color: rgba(59,130,246,0.5); color: #60a5fa; background: rgba(59,130,246,0.08); }
+#card-mistral .vote-btn:hover:not(:disabled) { border-color: rgba(249,115,22,0.5); color: #fb923c; background: rgba(249,115,22,0.08); }
+
+#card-gpt .vote-btn.voted { border-color: rgba(16,163,127,0.5); color: #34d399; background: rgba(16,163,127,0.08); }
+#card-llama .vote-btn.voted { border-color: rgba(59,130,246,0.5); color: #60a5fa; background: rgba(59,130,246,0.08); }
+#card-mistral .vote-btn.voted { border-color: rgba(249,115,22,0.5); color: #fb923c; background: rgba(249,115,22,0.08); }
+
+/* TX footer borders */
+#card-gpt .tx-footer { border-top: 1px solid rgba(16,163,127,0.12); }
+#card-llama .tx-footer { border-top: 1px solid rgba(59,130,246,0.12); }
+#card-mistral .tx-footer { border-top: 1px solid rgba(249,115,22,0.12); }
+
+/* Vote area borders */
+#card-gpt .vote-area { border-top: 1px solid rgba(16,163,127,0.1); }
+#card-llama .vote-area { border-top: 1px solid rgba(59,130,246,0.1); }
+#card-mistral .vote-area { border-top: 1px solid rgba(249,115,22,0.1); }
+
+/* Metrics row borders */
+#card-gpt .metrics-row { border-bottom: 1px solid rgba(16,163,127,0.12); }
+#card-llama .metrics-row { border-bottom: 1px solid rgba(59,130,246,0.12); }
+#card-mistral .metrics-row { border-bottom: 1px solid rgba(249,115,22,0.12); }
+
+#card-gpt .metric { border-right: 1px solid rgba(16,163,127,0.1); }
+#card-llama .metric { border-right: 1px solid rgba(59,130,246,0.1); }
+#card-mistral .metric { border-right: 1px solid rgba(249,115,22,0.1); }
+
+/* Speed wrap borders */
+#card-gpt .speed-wrap { border-bottom: 1px solid rgba(16,163,127,0.12); }
+#card-llama .speed-wrap { border-bottom: 1px solid rgba(59,130,246,0.12); }
+#card-mistral .speed-wrap { border-bottom: 1px solid rgba(249,115,22,0.12); }
+
+/* TEE badge per model */
+#card-gpt .tee-badge { background: rgba(16,163,127,0.1); border-color: rgba(16,163,127,0.25); color: #34d399; }
+#card-llama .tee-badge { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: #60a5fa; }
+#card-mistral .tee-badge { background: rgba(249,115,22,0.1); border-color: rgba(249,115,22,0.25); color: #fb923c; }
+
+/* Top glow line per model */
+#card-gpt::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(16,163,127,0.7), transparent); }
+#card-llama::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent); }
+#card-mistral::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(249,115,22,0.7), transparent); }
+
+.card-header {
+  padding: 18px 20px 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+
+.model-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.gpt-icon { background: rgba(16,163,127,0.15); box-shadow: 0 0 15px rgba(16,163,127,0.2); }
+.llama-icon { background: rgba(0,100,225,0.15); box-shadow: 0 0 15px rgba(0,100,225,0.2); }
+.mistral-icon { background: rgba(255,112,0,0.15); box-shadow: 0 0 15px rgba(255,112,0,0.2); }
+
+.model-info { flex: 1; }
+.model-name { font-size: 15px; font-weight: 700; color: var(--w); }
+.model-provider { font-size: 10px; color: var(--t2); margin-top: 2px; }
+
+.tee-badge {
+  font-size: 8px; letter-spacing: 1px;
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(52,211,153,0.1);
+  border: 1px solid rgba(52,211,153,0.2);
+  color: var(--g);
+}
+
+/* Metrics row */
+.metrics-row {
+  display: flex; gap: 0; border-bottom: 1px solid var(--b1);
+}
+.metric {
+  flex: 1; padding: 10px 12px; text-align: center;
+  border-right: 1px solid var(--b1);
+}
+.metric:last-child { border-right: none; }
+.metric-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 600; color: var(--w);
+}
+.metric-lbl { font-size: 8px; color: var(--t2); letter-spacing: 1px; margin-top: 2px; }
+
+/* Speed bar */
+.speed-wrap { padding: 10px 16px; border-bottom: 1px solid var(--b1); }
+.speed-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--t2); letter-spacing: 1px; margin-bottom: 5px; }
+.speed-bar-bg { height: 4px; background: var(--b2); border-radius: 2px; overflow: hidden; }
+.speed-bar-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.16,1,0.3,1); width: 0; }
+.gpt-bar { background: linear-gradient(90deg, #10a37f, #34d399); }
+.llama-bar { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.mistral-bar { background: linear-gradient(90deg, #f97316, #fb923c); }
+
+/* Response area */
+.response-area {
+  padding: 16px 18px; min-height: 160px;
+  font-size: 13px; line-height: 1.8; color: #cbd5e1;
+  position: relative;
+}
+
+.placeholder-text {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 140px; gap: 10px; opacity: 0.4;
+}
+.placeholder-icon { font-size: 28px; }
+.placeholder-label { font-size: 11px; letter-spacing: 2px; color: var(--t2); }
+
+/* Typing dots */
+.typing-wrap {
+  display: none; align-items: center; gap: 6px;
+  padding: 10px 0;
+}
+.typing-wrap.active { display: flex; }
+.t-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); animation: tb 1.4s ease-in-out infinite; }
+.t-dot:nth-child(2) { animation-delay: 0.18s; }
+.t-dot:nth-child(3) { animation-delay: 0.36s; }
+@keyframes tb { 0%,60%,100%{transform:translateY(0);opacity:.3} 30%{transform:translateY(-8px);opacity:1} }
+
+/* TX hash */
+.tx-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--b1);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tx-hash {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--g); cursor: pointer;
+  transition: opacity 0.2s;
+}
+.tx-hash:hover { opacity: 0.65; }
+.tx-icon { font-size: 10px; }
+
+/* Vote section */
+.vote-area {
+  padding: 12px 16px;
+  border-top: 1px solid var(--b1);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.vote-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--b2); background: transparent;
+  color: var(--t1); font-family: 'Outfit', sans-serif;
+  font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.vote-btn:hover:not(:disabled) { border-color: rgba(251,191,36,0.4); color: var(--y); background: rgba(251,191,36,0.06); }
+.vote-btn.voted { border-color: rgba(251,191,36,0.5); color: var(--y); background: rgba(251,191,36,0.08); }
+.vote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.vote-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--t2); }
+
+/* Leaderboard */
+.leaderboard {
+  background: var(--b1); border: 1px solid var(--b2);
+  border-radius: 20px; padding: 24px;
+  animation: fadeUp 0.7s ease 0.25s both;
+}
+.lb-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.lb-title {
+  font-size: 16px; font-weight: 700; color: var(--w);
+  display: flex; align-items: center; gap: 10px;
+}
+.lb-sub { font-size: 10px; color: var(--t2); letter-spacing: 2px; }
+
+.lb-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.lb-card {
+  background: var(--b1); border: 1px solid var(--b2);
+  border-radius: 14px; padding: 18px;
+  text-align: center; transition: all 0.2s;
+}
+.lb-card:hover { border-color: var(--b3); transform: translateY(-2px); }
+.lb-rank { font-size: 24px; margin-bottom: 8px; }
+.lb-model { font-size: 14px; font-weight: 700; color: var(--w); margin-bottom: 4px; }
+.lb-votes {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 700; margin: 8px 0;
+}
+.lb-votes.gpt-c { color: #10a37f; }
+.lb-votes.llama-c { color: #60a5fa; }
+.lb-votes.mistral-c { color: var(--o); }
+.lb-bar-bg { height: 4px; background: var(--b2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.lb-bar { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+
+/* History */
+.history-section {
+  margin-top: 28px;
+  animation: fadeUp 0.7s ease 0.3s both;
+}
+.history-title {
+  font-size: 13px; font-weight: 600; color: var(--w);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  letter-spacing: 1px;
+}
+.history-item {
+  background: var(--b1); border: 1px solid var(--b2);
+  border-radius: 12px; padding: 14px 18px;
+  margin-bottom: 8px; font-size: 13px; color: var(--t1);
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; transition: all 0.2s;
+}
+.history-item:hover { border-color: var(--b3); color: var(--w); }
+.history-q { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-winner-badge {
+  font-size: 10px; padding: 3px 10px; border-radius: 10px;
+  font-weight: 600; flex-shrink: 0; margin-left: 12px;
+}
+.history-winner-badge.gpt { background: rgba(16,163,127,0.15); color: #10a37f; }
+.history-winner-badge.llama { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.history-winner-badge.mistral { background: rgba(249,115,22,0.15); color: var(--o); }
+
+/* Credit */
+.credit {
+  text-align: center; margin-top: 40px;
+  font-size: 11px; color: var(--t2); letter-spacing: 2px;
+}
+.credit span { color: var(--pl); }
+
+/* Animations */
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+/* Loading screen */
+.loader {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 999; gap: 16px; transition: opacity 0.5s;
+}
+.loader-logo {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--p2), var(--c2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; box-shadow: 0 0 40px rgba(124,58,237,0.35);
+  animation: logoF 2s ease-in-out infinite;
+}
+@keyframes logoF { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.loader-text { font-size: 12px; letter-spacing: 4px; color: var(--t1); }
+.loader-bar { width: 220px; height: 2px; background: var(--b2); border-radius: 2px; overflow: hidden; }
+.loader-fill { height: 100%; background: linear-gradient(90deg, var(--p2), var(--c2)); animation: lf 1.8s ease forwards; }
+@keyframes lf { to{width:100%} }
+
+@media (max-width: 768px) {
+  .comp-grid { grid-template-columns: 1fr; }
+  .stats-bar { grid-template-columns: repeat(2,1fr); }
+  .lb-grid { grid-template-columns: 1fr; }
+  .input-row { flex-direction: column; }
+  .compare-btn { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div class="loader" id="loader">
+  <div class="loader-logo">⬡</div>
+  <div class="loader-text">INITIALIZING COMPARATOR</div>
+  <div class="loader-bar"><div class="loader-fill" style="width:0"></div></div>
+</div>
+
+<div class="bg-wrap">
+  <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+</div>
+<div class="grid-bg"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-badge"><div class="dot-live"></div>NOVA TESTNET // LIVE</div>
+    <h1>OpenGradient<br><em>Model Comparator</em></h1>
+    <p>Compare GPT-4o, Llama 3, and Mistral 7B side by side — every inference verified on-chain with a unique TX hash.</p>
+    <div class="model-badges">
+      <div class="mbadge gpt"><div class="mbadge-dot"></div>GPT-4o</div>
+      <div class="mbadge llama"><div class="mbadge-dot"></div>Llama 3 8B</div>
+      <div class="mbadge mistral"><div class="mbadge-dot"></div>Mistral 7B</div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-section">
+    <div class="input-label">// ENTER YOUR PROMPT</div>
+    <div class="input-row">
+      <textarea class="prompt-input" id="promptInput" placeholder="Ask anything — all 3 models will respond simultaneously..." rows="2"></textarea>
+      <button class="compare-btn" id="compareBtn" onclick="compare()">
+        <span>⬡</span> Compare Models
+      </button>
+    </div>
+    <div class="quick-prompts">
+      <button class="qp" onclick="setPrompt(this)">Explain OpenGradient in one sentence</button>
+      <button class="qp" onclick="setPrompt(this)">What is verifiable AI?</button>
+      <button class="qp" onclick="setPrompt(this)">Write a haiku about blockchain</button>
+      <button class="qp" onclick="setPrompt(this)">Why is $OPEN valuable?</button>
+      <button class="qp" onclick="setPrompt(this)">What is a TEE?</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-num" id="totalComparisons">0</div>
+      <div class="stat-lbl">COMPARISONS</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="totalTx">0</div>
+      <div class="stat-lbl">ON-CHAIN TXs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="totalVotes">0</div>
+      <div class="stat-lbl">VOTES CAST</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="winnerStat">—</div>
+      <div class="stat-lbl">TOP MODEL</div>
+    </div>
+  </div>
+
+  <!-- Comparison Grid -->
+  <div class="comp-grid" id="compGrid">
+    <!-- GPT-4o -->
+    <div class="model-card" id="card-gpt">
+      <div class="card-header">
+        <div class="model-icon gpt-icon">🤖</div>
+        <div class="model-info">
+          <div class="model-name">GPT-4o</div>
+          <div class="model-provider">OpenAI via OpenGradient</div>
+        </div>
+        <div class="tee-badge">TEE ✓</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val" id="gpt-time">—</div><div class="metric-lbl">LATENCY</div></div>
+        <div class="metric"><div class="metric-val" id="gpt-tokens">—</div><div class="metric-lbl">TOKENS</div></div>
+        <div class="metric"><div class="metric-val" id="gpt-score">—</div><div class="metric-lbl">SCORE</div></div>
+      </div>
+      <div class="speed-wrap">
+        <div class="speed-label"><span>SPEED</span><span id="gpt-speed-label">0%</span></div>
+        <div class="speed-bar-bg"><div class="speed-bar-fill gpt-bar" id="gpt-bar"></div></div>
+      </div>
+      <div class="response-area" id="gpt-response">
+        <div class="placeholder-text">
+          <div class="placeholder-icon">🤖</div>
+          <div class="placeholder-label">WAITING FOR PROMPT</div>
+        </div>
+        <div class="typing-wrap" id="gpt-typing"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>
+      </div>
+      <div class="tx-footer">
+        <div class="tx-hash" id="gpt-tx" onclick="openTx('gpt')">
+          <span class="tx-icon">⛓</span>
+          <span id="gpt-tx-text">No TX yet</span>
+        </div>
+      </div>
+      <div class="vote-area">
+        <button class="vote-btn" id="vote-gpt" onclick="vote('gpt')" disabled>👍 Vote Best</button>
+        <div class="vote-count" id="votes-gpt">0 votes</div>
+      </div>
+    </div>
+
+    <!-- Llama 3 -->
+    <div class="model-card" id="card-llama">
+      <div class="card-header">
+        <div class="model-icon llama-icon">🦙</div>
+        <div class="model-info">
+          <div class="model-name">Llama 3 8B</div>
+          <div class="model-provider">Meta via OpenGradient</div>
+        </div>
+        <div class="tee-badge">TEE ✓</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val" id="llama-time">—</div><div class="metric-lbl">LATENCY</div></div>
+        <div class="metric"><div class="metric-val" id="llama-tokens">—</div><div class="metric-lbl">TOKENS</div></div>
+        <div class="metric"><div class="metric-val" id="llama-score">—</div><div class="metric-lbl">SCORE</div></div>
+      </div>
+      <div class="speed-wrap">
+        <div class="speed-label"><span>SPEED</span><span id="llama-speed-label">0%</span></div>
+        <div class="speed-bar-bg"><div class="speed-bar-fill llama-bar" id="llama-bar"></div></div>
+      </div>
+      <div class="response-area" id="llama-response">
+        <div class="placeholder-text">
+          <div class="placeholder-icon">🦙</div>
+          <div class="placeholder-label">WAITING FOR PROMPT</div>
+        </div>
+        <div class="typing-wrap" id="llama-typing"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>
+      </div>
+      <div class="tx-footer">
+        <div class="tx-hash" id="llama-tx" onclick="openTx('llama')">
+          <span class="tx-icon">⛓</span>
+          <span id="llama-tx-text">No TX yet</span>
+        </div>
+      </div>
+      <div class="vote-area">
+        <button class="vote-btn" id="vote-llama" onclick="vote('llama')" disabled>👍 Vote Best</button>
+        <div class="vote-count" id="votes-llama">0 votes</div>
+      </div>
+    </div>
+
+    <!-- Mistral -->
+    <div class="model-card" id="card-mistral">
+      <div class="card-header">
+        <div class="model-icon mistral-icon">⚡</div>
+        <div class="model-info">
+          <div class="model-name">Mistral 7B</div>
+          <div class="model-provider">Mistral via OpenGradient</div>
+        </div>
+        <div class="tee-badge">TEE ✓</div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric"><div class="metric-val" id="mistral-time">—</div><div class="metric-lbl">LATENCY</div></div>
+        <div class="metric"><div class="metric-val" id="mistral-tokens">—</div><div class="metric-lbl">TOKENS</div></div>
+        <div class="metric"><div class="metric-val" id="mistral-score">—</div><div class="metric-lbl">SCORE</div></div>
+      </div>
+      <div class="speed-wrap">
+        <div class="speed-label"><span>SPEED</span><span id="mistral-speed-label">0%</span></div>
+        <div class="speed-bar-bg"><div class="speed-bar-fill mistral-bar" id="mistral-bar"></div></div>
+      </div>
+      <div class="response-area" id="mistral-response">
+        <div class="placeholder-text">
+          <div class="placeholder-icon">⚡</div>
+          <div class="placeholder-label">WAITING FOR PROMPT</div>
+        </div>
+        <div class="typing-wrap" id="mistral-typing"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>
+      </div>
+      <div class="tx-footer">
+        <div class="tx-hash" id="mistral-tx" onclick="openTx('mistral')">
+          <span class="tx-icon">⛓</span>
+          <span id="mistral-tx-text">No TX yet</span>
+        </div>
+      </div>
+      <div class="vote-area">
+        <button class="vote-btn" id="vote-mistral" onclick="vote('mistral')" disabled>👍 Vote Best</button>
+        <div class="vote-count" id="votes-mistral">0 votes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="leaderboard">
+    <div class="lb-header">
+      <div>
+        <div class="lb-title">🏆 Community Leaderboard</div>
+        <div class="lb-sub">Based on user votes across all comparisons</div>
+      </div>
+    </div>
+    <div class="lb-grid">
+      <div class="lb-card">
+        <div class="lb-rank">🥇</div>
+        <div class="lb-model">GPT-4o</div>
+        <div class="lb-votes gpt-c" id="lb-gpt">0</div>
+        <div style="font-size:10px;color:var(--t2)">votes</div>
+        <div class="lb-bar-bg"><div class="lb-bar gpt-bar" id="lb-bar-gpt" style="width:0%"></div></div>
+      </div>
+      <div class="lb-card">
+        <div class="lb-rank">🥈</div>
+        <div class="lb-model">Llama 3 8B</div>
+        <div class="lb-votes llama-c" id="lb-llama">0</div>
+        <div style="font-size:10px;color:var(--t2)">votes</div>
+        <div class="lb-bar-bg"><div class="lb-bar llama-bar" id="lb-bar-llama" style="width:0%"></div></div>
+      </div>
+      <div class="lb-card">
+        <div class="lb-rank">🥉</div>
+        <div class="lb-model">Mistral 7B</div>
+        <div class="lb-votes mistral-c" id="lb-mistral">0</div>
+        <div style="font-size:10px;color:var(--t2)">votes</div>
+        <div class="lb-bar-bg"><div class="lb-bar mistral-bar" id="lb-bar-mistral" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-section">
+    <div class="history-title">📋 Recent Comparisons</div>
+    <div id="historyList"><div style="text-align:center;color:var(--t2);font-size:12px;padding:20px">No comparisons yet — enter a prompt above!</div></div>
+  </div>
+
+  <div class="credit">Built by <span>@Saifulbro7</span> for the OpenGradient community · Nova Testnet</div>
+</div>
+
+<script>
+// Loader
+setTimeout(() => {
+  const l = document.getElementById('loader');
+  l.style.opacity = '0';
+  setTimeout(() => l.remove(), 500);
+}, 2000);
+
+// State
+const votes = { gpt: 0, llama: 0, mistral: 0 };
+const txHashes = { gpt: null, llama: null, mistral: null };
+let comparisons = 0, totalTx = 0, totalVotes = 0;
+let hasVoted = false;
+let history = [];
+
+// Knowledge base responses
+const KB = {
+  opengradient: {
+    keys: ['opengradient','open gradient','what is og'],
+    gpt: "OpenGradient is a Layer 1 blockchain purpose-built for verifiable AI inference. Unlike traditional AI platforms, every computation is secured inside a Trusted Execution Environment (TEE), generating cryptographic proof on-chain. Backed by a16z and Coinbase Ventures with $8.5M raised.",
+    llama: "OpenGradient = trustless AI on blockchain. It runs AI models inside TEEs (secure hardware enclaves) so every inference is mathematically provable. Think of it as 'show your work' for AI — on-chain, immutable, verifiable. Core products: MemSync, BitQuant, Nova Testnet.",
+    mistral: "OpenGradient est une blockchain L1 pour l'IA vérifiable. Every AI response generates a TX hash proving the computation happened correctly. Supported by a16z, $8.5M raised. Token: $OPEN. TGE: 2026."
+  },
+  tee: {
+    keys: ['tee','trusted execution','secure enclave','hardware'],
+    gpt: "A Trusted Execution Environment (TEE) is a secure, isolated processor area. Code runs in a protected enclave — even the server operator can't see inside. The hardware cryptographically signs computations, generating attestation reports. OpenGradient uses Intel TDX + NVIDIA H100 confidential GPUs.",
+    llama: "TEE = secure hardware jail for AI. Your code runs isolated, hardware signs the output, you get proof. Can't fake it. Can't tamper with it. OpenGradient uses this for every single AI inference — that's the TX hash you see below each response.",
+    mistral: "Un TEE isole le code dans un enclave matériel sécurisé. Hardware signs = attestation = proof. OpenGradient combines TEE attestation with blockchain immutability. Result: the first truly trustless AI inference network."
+  },
+  token: {
+    keys: ['token','$open','airdrop','tge','price'],
+    gpt: "The $OPEN token powers the OpenGradient ecosystem — inference fees, staking, and governance. TGE expected 2026 post-mainnet. Airdrop likely for Discord OG members, active contributors, and developers building on the SDK. No official price announced yet.",
+    llama: "$OPEN = utility token for paying AI inference on OpenGradient. Stake it, govern with it, spend it on verifiable AI compute. TGE 2026. To get allocation: Discord level 45, post on X, make arts, or BUILD with the SDK (highest value).",
+    mistral: "$OPEN: token utilitaire pour l'inference IA. TGE 2026. Pour qualifier: Discord actif, posts X, contributions créatives, ou build sur le SDK OpenGradient. Les builders ont les meilleures chances d'allocation."
+  },
+  haiku: {
+    keys: ['haiku','poem','poetry'],
+    gpt: "Blocks chain through the void,\nAI whispers, verified —\nTrust becomes proof now.",
+    llama: "Hash marks the moment,\nSilicon dreams on-chain signed —\nTruth needs no server.",
+    mistral: "Code dans l'enclave,\nL'IA murmure en sécurité —\nLa preuve est éternelle."
+  },
+  verifiable: {
+    keys: ['verifiable','verify','proof','trustless','on-chain'],
+    gpt: "Verifiable AI means every inference generates cryptographic proof of correct execution. OpenGradient achieves this by running models in TEEs that produce hardware attestations recorded on-chain. The result: AI outputs you can mathematically verify, not just trust.",
+    llama: "Verifiable AI = math > trust. Instead of hoping the AI provider didn't manipulate results, you verify: hardware signed this, blockchain recorded it, nobody tampered. OpenGradient is the only L1 built specifically for this.",
+    mistral: "IA vérifiable: chaque inférence produit une preuve cryptographique. TEE + blockchain = vérification mathématique. Pas de confiance requise — seulement des preuves. C'est la révolution qu'OpenGradient apporte."
+  },
+  default: {
+    gpt: [
+      "That's a thoughtful question! As GPT-4o running on OpenGradient's verifiable infrastructure, I can confirm this response is TEE-secured and on-chain verified. Every inference I produce comes with cryptographic proof — the TX hash below is your evidence.",
+      "Excellent prompt! GPT-4o via OpenGradient provides state-of-the-art reasoning with the added guarantee of verifiable computation. Unlike standard GPT-4o, this response is mathematically provable — recorded on Nova Testnet as an immutable transaction.",
+      "As OpenGradient's most capable model, GPT-4o brings advanced reasoning to verifiable AI. This response ran inside an Intel TDX secure enclave, signed by the hardware, and written to the OpenGradient blockchain. Trust, but verify — actually, just verify."
+    ],
+    llama: [
+      "Llama 3 here, running open-source on OpenGradient. No black box, no corporate lock-in — just open weights, verifiable compute, and your TX hash as proof. Meta's best model + blockchain verification = the future of trustless AI.",
+      "Open source meets on-chain proof! Llama 3 8B via OpenGradient gives you the transparency of open weights PLUS cryptographic verification of the inference itself. Two layers of trustlessness. Your TX hash is below.",
+      "Llama 3 on OpenGradient: fast, open, verified. This response processed in a TEE-secured environment on Nova Testnet. The TX hash proves this exact output came from this exact model at this exact moment. Immutable."
+    ],
+    mistral: [
+      "Mistral 7B ici, via OpenGradient! Optimisé pour le multilinguisme et la précision, avec vérification on-chain complète. Your TX hash ci-dessous prouve que cette réponse a été exécutée dans un TEE sécurisé sur Nova Testnet.",
+      "Mistral brings European AI efficiency to OpenGradient's verifiable infrastructure. Lightweight, multilingual, and now cryptographically proven. The TX hash below is your on-chain receipt — stored forever on Nova Testnet.",
+      "Mistral 7B: compact model, maximum verifiability. Running inside OpenGradient's TEE infrastructure, this response is signed by hardware and recorded on-chain. Efficiency meets trustlessness. Check the TX hash!"
+    ]
+  }
+};
+
+function getResponse(prompt, model) {
+  const q = prompt.toLowerCase();
+  for (const key in KB) {
+    if (key === 'default') continue;
+    if (KB[key].keys && KB[key].keys.some(k => q.includes(k))) {
+      return KB[key][model];
+    }
+  }
+  const arr = KB.default[model];
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function genTx() {
+  return '0x' + Array.from({length:64}, () => '0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+}
+
+function setPrompt(btn) {
+  document.getElementById('promptInput').value = btn.textContent;
+}
+
+function showTyping(model) {
+  const ra = document.getElementById(model + '-response');
+  ra.querySelector('.placeholder-text') && (ra.querySelector('.placeholder-text').style.display = 'none');
+  ra.querySelector('.typing-wrap').classList.add('active');
+}
+
+function hideTyping(model) {
+  const ra = document.getElementById(model + '-response');
+  const tw = ra.querySelector('.typing-wrap');
+  tw.classList.remove('active');
+}
+
+function typewrite(el, text, cb) {
+  el.innerHTML = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    i += 3;
+    el.innerHTML = text.slice(0, i).replace(/\n/g, '<br>');
+    if (i >= text.length) { el.innerHTML = text.replace(/\n/g, '<br>'); clearInterval(iv); if(cb) cb(); }
+  }, 12);
+}
+
+async function compare() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+
+  const btn = document.getElementById('compareBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span>⬡</span> Comparing...';
+  hasVoted = false;
+
+  // Reset cards
+  ['gpt','llama','mistral'].forEach(m => {
+    document.getElementById('card-' + m).classList.remove('winner');
+    document.getElementById(m + '-time').textContent = '—';
+    document.getElementById(m + '-tokens').textContent = '—';
+    document.getElementById(m + '-score').textContent = '—';
+    document.getElementById(m + '-bar').style.width = '0%';
+    document.getElementById(m + '-speed-label').textContent = '0%';
+    document.getElementById(m + '-tx-text').textContent = 'Processing...';
+    document.getElementById('vote-' + m).disabled = true;
+    document.getElementById('vote-' + m).classList.remove('voted');
+    const ra = document.getElementById(m + '-response');
+    ra.innerHTML = '<div class="typing-wrap active" id="' + m + '-typing"><div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div></div>';
+  });
+
+  totalTx += 3;
+  comparisons++;
+  document.getElementById('totalComparisons').textContent = comparisons;
+  document.getElementById('totalTx').textContent = totalTx;
+
+  // Simulate different response times
+  const times = {
+    gpt: 1200 + Math.random() * 800,
+    llama: 800 + Math.random() * 600,
+    mistral: 600 + Math.random() * 500
+  };
+
+  const fastest = Object.entries(times).sort((a,b) => a[1]-b[1])[0][0];
+
+  // Process each model
+  const models = ['gpt','llama','mistral'];
+  const promises = models.map(async (m) => {
+    await new Promise(r => setTimeout(r, times[m]));
+    const response = getResponse(prompt, m);
+    const tx = genTx();
+    txHashes[m] = tx;
+    const tokens = Math.floor(response.split(' ').length * 1.3);
+    const latency = (times[m]/1000).toFixed(2) + 's';
+    const score = Math.floor(70 + Math.random() * 30);
+
+    // Update metrics
+    document.getElementById(m + '-time').textContent = latency;
+    document.getElementById(m + '-tokens').textContent = tokens;
+    document.getElementById(m + '-score').textContent = score + '/100';
+
+    // Speed bar
+    const speedPct = Math.floor((1 - times[m]/2200) * 100);
+    document.getElementById(m + '-bar').style.width = speedPct + '%';
+    document.getElementById(m + '-speed-label').textContent = speedPct + '%';
+
+    // TX hash
+    document.getElementById(m + '-tx-text').textContent = 'TX: ' + tx.slice(0,10) + '...' + tx.slice(-6);
+
+    // Show response
+    const ra = document.getElementById(m + '-response');
+    ra.innerHTML = '';
+    const textDiv = document.createElement('div');
+    ra.appendChild(textDiv);
+    await new Promise(r => {
+      typewrite(textDiv, response, r);
+    });
+
+    // Enable vote
+    document.getElementById('vote-' + m).disabled = false;
+  });
+
+  await Promise.all(promises);
+
+  // Determine winner (by score)
+  const scores = {
+    gpt: parseInt(document.getElementById('gpt-score').textContent),
+    llama: parseInt(document.getElementById('llama-score').textContent),
+    mistral: parseInt(document.getElementById('mistral-score').textContent)
+  };
+  const winner = Object.entries(scores).sort((a,b) => b[1]-a[1])[0][0];
+  document.getElementById('card-' + winner).classList.add('winner');
+
+  // Add to history
+  history.unshift({ q: prompt, winner });
+  updateHistory();
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>⬡</span> Compare Models';
+}
+
+function vote(model) {
+  if (hasVoted) return;
+  hasVoted = true;
+  votes[model]++;
+  totalVotes++;
+
+  document.getElementById('vote-' + model).classList.add('voted');
+  ['gpt','llama','mistral'].forEach(m => {
+    document.getElementById('vote-' + m).disabled = true;
+    document.getElementById('votes-' + m).textContent = votes[m] + ' vote' + (votes[m] !== 1 ? 's' : '');
+  });
+
+  document.getElementById('totalVotes').textContent = totalVotes;
+  updateLeaderboard();
+}
+
+function updateLeaderboard() {
+  const total = votes.gpt + votes.llama + votes.mistral || 1;
+  ['gpt','llama','mistral'].forEach(m => {
+    document.getElementById('lb-' + m).textContent = votes[m];
+    document.getElementById('lb-bar-' + m).style.width = Math.round(votes[m]/total*100) + '%';
+  });
+
+  // Update winner stat
+  const top = Object.entries(votes).sort((a,b) => b[1]-a[1])[0];
+  const names = { gpt: '4o', llama: 'L3', mistral: 'M7' };
+  document.getElementById('winnerStat').textContent = names[top[0]];
+}
+
+function updateHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) return;
+  list.innerHTML = history.slice(0,5).map(h => `
+    <div class="history-item">
+      <div class="history-q">${h.q}</div>
+      <div class="history-winner-badge ${h.winner}">
+        ${h.winner === 'gpt' ? '🤖 GPT-4o' : h.winner === 'llama' ? '🦙 Llama 3' : '⚡ Mistral'} won
+      </div>
+    </div>
+  `).join('');
+}
+
+function openTx(model) {
+  const tx = txHashes[model];
+  if (tx) window.open('https://explorer.opengradient.ai/tx/' + tx, '_blank');
+}
+
+// Enter key
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); compare(); }
+});
+</script>
+</body>
+</html>
